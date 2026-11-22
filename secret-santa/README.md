@@ -4,25 +4,28 @@ A small web app for running a Secret Santa name draw with friends, family or col
 
 ## Features
 
-- **Fixed draw.** Names are drawn once on the server and saved. Everyone sees the same result on every device.
+- **Fixed draw.** Once every person has submitted a list, names are drawn on the server and saved. Everyone sees the same result on every device.
+- **Hidden from the organizer.** The organizer page and the organizer API never include who was assigned to whom. Each player only sees their own person.
 - **Hidden exclusions.** The organiser can stop specific people from drawing each other (optionally both ways). Exclusions never reach participant pages.
-- **No sign-in.** Participants open a shared link and pick their own name from a dropdown.
-- **Wish lists.** Each person adds gift ideas, each with a title and an optional link. Your Secret Santa sees your list after the draw.
-- **Organiser can play.** The admin page never shows who drew whom.
-- **Safe redraws.** The draw is locked after it runs. A "Reset draw" button (with a confirmation) lets the organiser redo it.
+- **No sign-in.** Participants open a shared link and pick their own name.
+- **Wish lists and a note.** Each person adds gift names or links, plus an optional note, then submits the list. Their Secret Santa sees both after the draw.
+- **Organiser can play.** They use the same player link as everyone else and only learn their own assignment.
+- **Safe redraws.** The draw is locked after it runs. Resetting it clears pairings only, and the organizer still is not shown the result.
 
 ## How it works
 
 | Piece | What it does |
 | --- | --- |
-| `public/index.html` | The whole front-end (participant view at `/`, organiser view at `/#admin`) |
+| `public/index.html` | Page shell (participant view at `/`, organiser view at `/#admin`) |
+| `public/styles.css` | Festive layout, for phones and wider screens |
+| `public/app.js` | Front-end flow for setup, wish lists, and the private reveal |
 | `public/favicon.svg` | The browser tab icon |
 | `src/index.js` | The Worker: serves the API under `/api/*` and everything else from `public/` |
 | `schema.sql` | Database tables: `settings`, `members`, `exclusions`, `wishes` |
 | `wrangler.toml` | Worker configuration and database binding |
 | `.dev.vars` | Your organiser password (`ADMIN_KEY`). Never share or commit this file |
 
-The draw uses a randomised backtracking search. Nobody draws themselves or someone they are excluded from. If the exclusions make a valid draw impossible, the organiser is told and nothing is saved. At least 3 participants are needed.
+The draw uses a randomised backtracking search. Nobody draws themselves or someone they are excluded from. If the exclusions make a valid draw impossible, the organiser is told and nothing is saved. At least 2 participants are needed. The draw runs on its own when the last list is submitted.
 
 ## Requirements
 
@@ -57,14 +60,14 @@ The first time you start it, Windows may show a firewall prompt. Allowing it on 
 ## Organiser workflow
 
 1. Open `/#admin` and log in.
-2. Set the event name, date and budget.
-3. Add all participants.
-4. Add any exclusions (for example, couples who shouldn't draw each other).
-5. Share the participant link and ask everyone to add their wish list.
-6. When everyone is ready, press **Draw names**.
-7. Participants return to the link and tap **Reveal who I drew**.
+2. Set the event date and price limit, and add every participant.
+3. Copy the player link and share it.
+4. Each player picks their name, adds gift names or links, optionally leaves a note, and submits.
+5. When the last list is submitted, names are drawn automatically. The organizer page only shows who has submitted, never the pairs.
+6. Players open the link again, pick their name, and see that one person's list and note.
+7. If a draw has to be redone, reset it and press **Draw names**. The result stays hidden.
 
-Participants can't be added or removed once the draw is done. Reset the draw first if you need to change the group.
+Lock the guest list when everyone who is playing has been added. The draw waits for that lock and for every list. People can't be added or removed once the draw is done — reset it first. Lists also lock when the draw runs.
 
 ## Sharing with people outside your network
 
@@ -127,7 +130,7 @@ The icon is `public/favicon.svg`, referenced in the `<head>` of `public/index.ht
 
 ## Security notes
 
-- There is no participant login by design. Anyone with the link can pick any name, see that person's assignment and edit their wish list. Only share the link with people you trust.
+- There is no participant login by design. Anyone with the link can pick any name and see that person's assignment. Only share the link with people you trust. Wish lists can't be edited after the draw.
 - The organiser password is stored in `.dev.vars` and sent as a request header, so keep the app on trusted networks or behind the HTTPS tunnel.
 - Exclusions and assignments are only exposed through organiser-only or per-person endpoints, but anyone with access to the database files on your PC can read everything.
 - `wrangler dev` is a development server. It is fine for a small group for a few weeks, not for public production use.
@@ -136,4 +139,4 @@ The icon is `public/favicon.svg`, referenced in the `<head>` of `public/index.ht
 
 - Single event per installation. For a second group, copy the project to a new folder with its own database.
 - No email notifications or reminders.
-- Wish lists support titles and links only (no images or prices).
+- Wish lists support a name or a link per gift, plus one short note (no images).
