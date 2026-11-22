@@ -1,0 +1,9 @@
+{
+  "name": "secret-santa",
+  "private": true,
+  "scripts": {
+    "db:init": "wrangler d1 execute santa --local --file=schema.sql",
+    "start": "wrangler dev --ip 0.0.0.0 --port 8787"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}
