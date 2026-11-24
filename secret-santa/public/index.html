@@ -39,6 +39,9 @@ h1 { margin: 0; font-family: Fraunces, serif; font-weight: 600; font-size: 32px;
 .field { display: flex; align-items: center; background: var(--field); border-radius: 12px; padding: 12px; border: 1px solid transparent; }
 .field input { width: 100%; border: 0; background: transparent; padding: 0; outline: none; font-weight: 500; line-height: 1.4; }
 .field input::placeholder { color: #000; opacity: 1; }
+.player-row { display: flex; align-items: center; gap: 8px; }
+.player-row .field { flex: 1; min-width: 0; }
+.remove-player { flex: none; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: #000; font-size: 20px; line-height: 1; }
 .option { width: 100%; text-align: left; background: var(--field); border-radius: 12px; border: 1px solid transparent; padding: 12px; font-weight: 500; line-height: 1.4; }
 .option.selected { border-color: var(--green); }
 .q-kicker { margin: 0; font-weight: 400; font-size: 12px; line-height: 1.4; color: var(--green); }
@@ -112,7 +115,7 @@ const state = {
   screen: "welcome",
   date: "",
   price: "",
-  players: ["", "", "", ""],
+  players: ["", "", ""],
   code: "",
   answers: Array(10).fill(null),
   responses: {},
@@ -130,7 +133,7 @@ function load() {
     if (!saved) return;
     state.date = saved.date || "";
     state.price = saved.price || "";
-    state.players = Array.isArray(saved.players) && saved.players.length ? saved.players : state.players;
+    state.players = normalizePlayers(saved.players);
     state.code = saved.code || "";
     state.answers = Array.isArray(saved.answers) && saved.answers.length === 10 ? saved.answers : state.answers;
     state.responses = saved.responses && typeof saved.responses === "object" ? saved.responses : {};
@@ -142,6 +145,12 @@ function save() {
     date: state.date, price: state.price, players: state.players,
     code: state.code, answers: state.answers, responses: state.responses, q: state.q
   }));
+}
+function normalizePlayers(list) {
+  const players = Array.isArray(list) && list.length ? list.map(n => String(n ?? "")) : ["", "", ""];
+  while (players.length < 3) players.push("");
+  while (players.length > 3 && !String(players[players.length - 1]).trim()) players.pop();
+  return players;
 }
 function roomCode() {
   if (!state.code) state.code = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -244,7 +253,11 @@ function screenDate() {
   </section>`;
 }
 function screenPlayers() {
-  const fields = state.players.map((name, i) => `<label class="field"><input class="player-input" data-i="${i}" aria-label="Player ${i + 1}" placeholder="Player ${i + 1}" value="${esc(name)}"></label>`).join("");
+  const fields = state.players.map((name, i) => {
+    const input = `<label class="field"><input class="player-input" data-i="${i}" aria-label="Player ${i + 1}" placeholder="Player ${i + 1}" value="${esc(name)}"></label>`;
+    if (i < 3) return input;
+    return `<div class="player-row">${input}<button class="remove-player" type="button" data-i="${i}" aria-label="Remove Player ${i + 1}">✕</button></div>`;
+  }).join("");
   return `<section class="screen">
     ${art("deco mistletoe", "/assets/mistletoe.png")}
     <div class="stack" style="gap:41px">
@@ -372,7 +385,8 @@ function readInputs() {
   const price = document.getElementById("price-input");
   if (price) state.price = price.value;
   document.querySelectorAll(".player-input").forEach(input => {
-    state.players[Number(input.dataset.i)] = input.value;
+    const i = Number(input.dataset.i);
+    if (i < state.players.length) state.players[i] = input.value;
   });
 }
 
@@ -389,6 +403,16 @@ function bind() {
   on("create-room", () => go("date"));
   on("date-next", () => { readInputs(); go("players"); });
   on("add-player", () => { readInputs(); state.players.push(""); save(); render(); });
+  document.querySelectorAll(".remove-player").forEach(btn => {
+    btn.addEventListener("click", () => {
+      readInputs();
+      const i = Number(btn.dataset.i);
+      if (i < 3) return;
+      state.players.splice(i, 1);
+      save();
+      render();
+    });
+  });
   on("players-next", () => { readInputs(); go("price"); });
   on("price-next", () => { readInputs(); state.copied = false; go("share"); });
   on("copy-link", async () => {
